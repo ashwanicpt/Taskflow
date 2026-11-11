@@ -10,6 +10,7 @@ python-multipart
 aiofiles
 python-dotenv
 psycopg2-binary
+psycopg[binary]
 google-genai
 openpyxl
 python-docx
