@@ -10,18 +10,6 @@ python-multipart
 aiofiles
 python-dotenv
 psycopg2-binary
-psycopg[binary]
 google-genai
 openpyxl
 python-docx
-# --- HOW TO RUN THIS PROJECT ---
-# 1. Activate environment:
-#    In PowerShell: .\env\Scripts\Activate.ps1
-#    In Git Bash:   source env/Scripts/activate
-#
-# 2. Run Migration (Required once for new features):
-#    python migrate_add_columns.py
-#
-# 3. Start Server:
-#    python main.py
-#    (OR: uvicorn main:app --reload)
