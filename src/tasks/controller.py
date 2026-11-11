@@ -1,4 +1,5 @@
-from src.tasks.dtos import TaskSchema, MultipleCond
+ 
+from src.tasks.dtos import TaskSchema, MultipleCond , RecentTask
 from sqlalchemy.orm import Session 
 from src.tasks.models import TaskModel
 from fastapi import HTTPException
@@ -152,3 +153,46 @@ def update_tasks_by_title(body: TaskSchema, title: str, db: Session, user: UserM
         "Status": "Task Updated Successfully",
         "data": one_task
     }
+
+
+
+    
+
+def get_recent_task(body: RecentTask, db: Session, user: UserModel):
+    if db is None:
+        raise HTTPException(500, detail="Database session is None in get_recent_task")
+
+    if isinstance(body, dict):
+        body = RecentTask(**body)
+
+    query = db.query(TaskModel).filter(TaskModel.user_id == user.id)
+
+    # Optional filter by title
+    if body.title:
+        query = query.filter(TaskModel.title.ilike(f"%{body.title}%"))
+
+    # Optional filter by status ('completed' or 'pending')
+    if body.status:
+        if body.status.lower() in ["completed", "done", "true"]:
+            query = query.filter(TaskModel.is_completed == True)
+        elif body.status.lower() in ["pending", "incomplete", "false"]:
+            query = query.filter(TaskModel.is_completed == False)
+
+    # Order by most recent first
+    recent_tasks = query.order_by(TaskModel.created_at.desc(), TaskModel.id.desc()).all()
+    return recent_tasks
+
+
+
+
+def delete_all_tasks(db: Session, user: UserModel):
+    if db is None:
+        raise HTTPException(500, detail="Database session is None in delete_all_tasks")
+    tasks = db.query(TaskModel).filter(TaskModel.user_id == user.id).all()
+    if not tasks:
+        raise HTTPException(404, detail="No tasks found to delete")
+    
+    for task in tasks:
+        db.delete(task)
+    db.commit()
+    return {"status": "All tasks deleted successfully"}

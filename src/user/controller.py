@@ -54,3 +54,9 @@ def login_user(body:LoginSchema, db:Session):
     settings.ALGORITHM)
     return { "message":f"User Login successfully  {user.username}"
         ,"token":token}
+
+
+
+
+def get_all_user(db:Session):
+    return db.query(UserModel).all()

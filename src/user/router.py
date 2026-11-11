@@ -1,5 +1,5 @@
 from fastapi import APIRouter , Depends ,status , Request 
-from src.user.dtos import UserSchema,UserResponseSchema,LoginSchema
+from src.user.dtos import UserSchema,UserResponseSchema,LoginSchema , GetAllUser
 from src.user import controller
 from sqlalchemy.orm import Session 
 from src.utils.db import get_db
@@ -21,3 +21,10 @@ def login(body:LoginSchema,db:Session=Depends(get_db)):
 @user_routes.get("/is_auth",status_code=status.HTTP_200_OK , response_model=UserResponseSchema)
 def is_auth(user:UserModel=Depends(is_authenticated)):
     return user
+
+
+
+
+@user_routes.get("/all",response_model=list[GetAllUser])
+def get_all_users(db:Session=Depends(get_db)):
+    return controller.get_all_user(db)

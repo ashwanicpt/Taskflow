@@ -11,6 +11,8 @@ aiofiles
 python-dotenv
 psycopg2-binary
 google-genai
+openpyxl
+python-docx
 # --- HOW TO RUN THIS PROJECT ---
 # 1. Activate environment:
 #    In PowerShell: .\env\Scripts\Activate.ps1

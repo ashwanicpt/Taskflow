@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Application Logs - TaskFlow{% endblock %}
+
+{% block content %}
+<style>
+    .logs-page { padding: 2rem 0 3rem; }
+    .logs-header, .logs-toolbar, .log-entry {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+    .logs-header { padding: 1.5rem; margin-bottom: 1rem; }
+    .logs-header h1 { font-size: 1.5rem; margin-bottom: 0.35rem; }
+    .logs-header p, .log-meta { color: var(--text-muted); }
+    .logs-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .logs-toolbar input, .logs-toolbar select {
+        min-height: 2.5rem;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: var(--surface);
+        color: var(--text);
+    }
+    .logs-toolbar input { flex: 1; min-width: 12rem; }
+    .logs-list { display: grid; gap: 0.75rem; }
+    .log-entry { padding: 1rem; }
+    .log-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; font-size: 0.8rem; }
+    .log-level { font-weight: 700; }
+    .log-level.ERROR, .log-level.CRITICAL { color: var(--error); }
+    .log-level.WARNING { color: #d97706; }
+    .log-level.DEBUG { color: var(--text-muted); }
+    .log-message { white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 0.875rem; }
+    .logs-empty { padding: 2rem; text-align: center; color: var(--text-muted); }
+    .logs-pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem; }
+</style>
+
+<section class="logs-page">
+    <header class="logs-header">
+        <h1>Application Logs</h1>
+        <p>{{ total_entries }} matching retained entries. Page {{ page }} of {{ page_count }}.</p>
+    </header>
+
+    <form class="logs-toolbar" method="get" action="/logs">
+        <select name="level" aria-label="Filter by severity">
+            {% for option in ["ALL", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] %}
+            <option value="{{ option }}" {% if selected_level == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+        </select>
+        <input type="search" name="search" value="{{ search }}" maxlength="200" placeholder="Search logs" aria-label="Search logs">
+        <button class="btn btn-primary" type="submit">Filter</button>
+        <a class="btn btn-outline" href="/logs">Clear</a>
+    </form>
+
+    <div class="logs-list">
+        {% for entry in entries %}
+        <article class="log-entry">
+            <div class="log-meta">
+                <time>{{ entry.timestamp or "Unknown time" }}</time>
+                <span class="log-level {{ entry.level }}">{{ entry.level }}</span>
+                <span>{{ entry.logger }}</span>
+            </div>
+            <div class="log-message">{{ entry.message }}</div>
+        </article>
+        {% else %}
+        <div class="log-entry logs-empty">No log entries match your filter. Logs are written as the application runs.</div>
+        {% endfor %}
+    </div>
+
+    {% if total_entries > 0 %}
+    <form class="logs-pagination" method="get" action="/logs">
+        <input type="hidden" name="level" value="{{ selected_level }}">
+        <input type="hidden" name="search" value="{{ search }}">
+        {% if page > 1 %}
+        <button class="btn btn-outline" type="submit" name="page" value="{{ page - 1 }}">Newer</button>
+        {% endif %}
+        {% if page < page_count %}
+        <button class="btn btn-outline" type="submit" name="page" value="{{ page + 1 }}">Older</button>
+        {% endif %}
+    </form>
+    {% endif %}
+</section>
+{% endblock %}

@@ -37,6 +37,12 @@ class MultipleCond(BaseModel):
     title:str
     is_completed:bool
 
+
+
+class RecentTask(BaseModel):
+    title:Optional[str]=None
+    status:Optional[str]=None
+
 # Request flow 
 
 """

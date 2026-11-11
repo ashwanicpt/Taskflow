@@ -67,3 +67,10 @@ def delete_task(task_id:int, db=Depends(get_db),user:UserModel=Depends(is_authen
     return controller.delete_task(task_id,db,user)
 
  
+
+from src.tasks.dtos import RecentTask
+
+
+@task_routes.get("/recents",response_model=List[TaskResponseSchema],status_code=status.HTTP_200_OK)
+def get_recent_task(body:RecentTask, db=Depends(get_db),user:UserModel=Depends(is_authenticated)):
+    return controller.get_recent_task(body, db, user)

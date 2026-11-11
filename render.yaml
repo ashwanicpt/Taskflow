@@ -11,11 +11,14 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /login
     envVars:
       - key: DB_CONNECTION
         fromDatabase:
           name: taskflow_db
           property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
       - key: SECRET_KEY
         generateValue: true # Generates a random secure key for you
       - key: ALGORITHM

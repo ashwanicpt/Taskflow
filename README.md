@@ -1,8 +1,8 @@
-# TaskFlow - FastAPI Task Management Applications
+# TaskFlow - FastAPI Task Management Application
 
 A modern Task Management System built with **FastAPI**, **Jinja2 Templates**, and **PostgreSQL**.
 
-For a detailed guide on how to use all the features, see the [**User Guide (USAGES.md)**](file:///c:/Users/acer/OneDrive/Desktop/fastApi_taskManagement/USAGES.md).
+For a detailed guide on how to use all the features, see [USAGES.md](USAGES.md).
 
 ## 🌟 Key Features
 - **Integrated Frontend**: Complete UI for login, registration, and task CRUD.
@@ -15,42 +15,36 @@ For a detailed guide on how to use all the features, see the [**User Guide (USAG
 
 ## 🚀 Getting Started
 
-### 1. Environment Setup
-Activate your Python virtual environment:
+### Run locally
 
-**PowerShell (Windows):**
+Create and activate a virtual environment, then install dependencies:
+
 ```powershell
-.\env\Scripts\Activate.ps1
+py -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-**Git Bash / Linux / macOS:**
+Set the required `DB_CONNECTION`, `SECRET_KEY`, `ALGORITHM`, and `EXP_Time` environment variables (or configure them in a local `.env` file). Set `GOOGLE_API_KEY` to enable the AI assistant.
+
+Start the app:
+
 ```bash
-source env/Scripts/activate
+python -m uvicorn main:app --reload
 ```
 
-### 2. Install Dependencies
-```bash
-pip install -r requirement.txt
-```
+### Deploy to Render
 
-### 3. Database Migration
-Run the following script to add the new priority and due date columns to your database:
-```bash
-python migrate_add_columns.py
-```
+1. Push the project to a GitHub repository. Do not commit `.env`, virtual environments, local database files, or API keys.
+2. In Render, choose **New → Blueprint** and connect the repository containing `render.yaml`.
+3. Review the Blueprint. It creates the `taskflow-app` web service and a PostgreSQL database.
+4. Before deploying, provide `GOOGLE_API_KEY` in the web service's environment settings. The AI assistant requires a valid Google AI API key.
+5. Apply the Blueprint and wait for the build and deploy to finish.
+6. Open the web service's `onrender.com` URL and sign in or register.
 
-### 4. Run the Project
-Start the combined frontend and backend server:
-```bash
-python main.py
-```
-*Or use uvicorn directly (with auto-reload enabled):*
-```bash
-env/Scripts/python.exe -m uvicorn main:app --reload
-```
+The Blueprint generates `SECRET_KEY` and connects the app to its PostgreSQL database. It sets `/login` as the health check. If deployment fails, check **Events** and **Logs** in the Render dashboard.
 
-Then Visit :
-https://taskflow-app-production-679f.up.railway.app/login
+> **Free-plan note:** Render's free web services spin down when idle, and their local files (including this app's log files) are ephemeral. Free Render Postgres expires 30 days after creation. Use a paid database plan for data you need to keep; see [Render's free-instance limitations](https://render.com/docs/free).
 
 ---
 

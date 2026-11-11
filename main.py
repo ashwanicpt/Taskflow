@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import os
+import logging
 load_dotenv(dotenv_path=".env", override=True)
  
  
@@ -23,6 +24,7 @@ from src.user.router import user_routes
 from src.frontend.router import router as frontend_router
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
+from src.utils.logging_config import configure_application_logging
 import mimetypes
 import os
 mimetypes.init()
@@ -32,13 +34,20 @@ mimetypes.add_type('application/javascript', '.js')
 # 
 Base.metadata.create_all(engine)
 app=FastAPI(title="This is my Task Management Applications")
+logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+def setup_application_logging():
+    configure_application_logging()
  
 from fastapi import Request, Response
  
 class HTTPSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # This forces FastAPI to generate 'https' links for static files
-        request.scope["scheme"] = "https"
+        host = request.headers.get("host", "")
+        # Only force HTTPS scheme when deployed in production (not on localhost)
+        if "localhost" not in host and "127.0.0.1" not in host:
+            request.scope["scheme"] = "https"
         response = await call_next(request)
         return response
 
@@ -53,6 +62,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         import traceback
+        logger.exception("Unhandled exception while handling %s %s", request.method, request.url.path)
         return Response(content=f"Global Error: {str(e)}\n\n{traceback.format_exc()}", media_type="text/plain", status_code=500)
 
 # Mount Static Files

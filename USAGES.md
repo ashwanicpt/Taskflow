@@ -89,3 +89,42 @@ Reset: If you want to start over, just click the "+ New chat" button in the side
 💡 Pro Tip
 
 The AI Agent is best used for quick task creation. If you're in a hurry, just type "Add buying groceries to my list for 6pm tonight" and let the AI handle the forms for you!
+
+## 📎 5. Import Tasks from a File
+
+### Use the upload feature
+
+1. Sign in and open the AI Agent using the floating chat button.
+2. Click the paperclip button beside the message input.
+3. Choose a `.xlsx` Excel workbook or a `.docx` Word document.
+4. The agent extracts task titles and descriptions, then creates the tasks for your account.
+
+Uploads create tasks immediately; there is no review or confirmation screen. Existing task titles for your account are skipped and reported in the chat. Imported tasks use medium priority and have no due date unless the task is edited afterward.
+
+### File formats
+
+Excel workbooks must have a header row with `title` and `description` columns. Header matching ignores capitalization and spaces, so `Task Title` and `Task Description` are also accepted. The active worksheet is read.
+
+Word documents can use a table with `title` and `description` columns. If no matching table exists, the document text is sent to Gemini to extract tasks. The document should clearly identify task titles and descriptions; Gemini is instructed not to invent tasks.
+
+Only `.xlsx` and `.docx` are supported. Older `.xls` and `.doc` files, PDFs, and files larger than 5 MB are rejected. A file may contain up to 100 tasks.
+
+### Implementation overview
+
+- `templates/base.html` provides the paperclip control and sends the selected file to `POST /agent/upload` as multipart form data.
+- `src/frontend/router.py` authenticates the request, extracts tasks, skips duplicate titles belonging to the signed-in user, creates the remaining tasks, and records the import in chat history.
+- `src/agent/file_import.py` reads Excel rows with `openpyxl` and Word documents with `python-docx`. Unstructured Word text is sent to Gemini, then checked for task titles and descriptions before creation.
+- `requirements.txt` lists `openpyxl` and `python-docx`, in addition to the existing `python-multipart` upload dependency.
+
+To install the dependencies and run the application locally:
+
+```powershell
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+## 📋 6. Application Logs
+
+Sign in and select **Application Logs** in the navigation bar to view application and server logs. The page supports severity and text filters, shows 100 entries per page with the newest first, and lets you page through all retained entries. Access requires a valid signed-in session.
+
+Logs are written to `logs/application.log` and rotated after 2 MB, keeping up to five previous files. The `logs/` directory is excluded from Git. A new log file is created when the application starts and begins recording.

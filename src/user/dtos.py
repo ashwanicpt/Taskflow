@@ -11,7 +11,7 @@ class UserSchema(BaseModel):
 
 
 class UserResponseSchema(BaseModel):
-     
+
     name:str
     username:str
     # hash_password:str
@@ -21,3 +21,13 @@ class UserResponseSchema(BaseModel):
 class LoginSchema(BaseModel):
     username:str
     password:str
+
+
+
+class GetAllUser(BaseModel):
+    id: int
+    name: str
+    username: str
+    email: str
+
+    model_config = {"from_attributes": True}

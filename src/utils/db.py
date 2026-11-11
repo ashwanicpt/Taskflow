@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from  sqlalchemy.orm import sessionmaker , declarative_base
 from src.utils.settings import settings
 
-# declarative_base are used to create the table in the database and also interact with 
+# declarative_base are used to create the table in the database and also interact with the database 
 Base =declarative_base()
 
 # create_engine() is a function from SQLAlchemy used to connect you python application to a database

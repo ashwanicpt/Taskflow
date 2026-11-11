@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Form, status, Response
+from fastapi import APIRouter, Request, Depends, Form, status, Response, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -10,9 +10,11 @@ from src.utils.helpers import is_authenticated
 from src.user.models import UserModel
 import os
 from src.agent.task_agent import run_agent
+from src.agent.file_import import extract_tasks_from_file, MAX_UPLOAD_BYTES
 from src.agent.models import ChatHistoryModel
 import uuid
 from sqlalchemy import func
+from src.utils.logging_config import LOG_LEVELS, read_application_logs
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
@@ -130,6 +132,41 @@ async def list_tasks(
         "today": datetime.now().date()
     })
 
+@router.get("/logs", response_class=HTMLResponse)
+async def application_logs(
+    request: Request,
+    level: str = "ALL",
+    search: str = "",
+    page: int = 1,
+    user: UserModel = Depends(is_authenticated)
+):
+    selected_level = level.upper()
+    if selected_level != "ALL" and selected_level not in LOG_LEVELS:
+        raise HTTPException(status_code=400, detail="Invalid log level")
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be greater than zero")
+
+    page_size = 100
+    entries, total_entries = read_application_logs(
+        level=selected_level,
+        search=search[:200],
+        limit=page_size,
+        offset=(page - 1) * page_size,
+    )
+    page_count = max(1, (total_entries + page_size - 1) // page_size)
+    if page > page_count:
+        raise HTTPException(status_code=404, detail="Log page not found")
+
+    return templates.TemplateResponse(request, "logs.html", {
+        "user": user,
+        "entries": entries,
+        "total_entries": total_entries,
+        "page": page,
+        "page_count": page_count,
+        "selected_level": selected_level,
+        "search": search[:200],
+    })
+
 @router.get("/tasks/create", response_class=HTMLResponse)
 async def create_task_page(request: Request, db: Session = Depends(get_db), user: UserModel = Depends(is_authenticated)):
     history = db.query(ChatHistoryModel).filter(ChatHistoryModel.user_id == user.id).order_by(ChatHistoryModel.created_at.asc()).all()
@@ -194,7 +231,7 @@ async def agent_action(
     db: Session = Depends(get_db),
     user: UserModel = Depends(is_authenticated)
 ):
-    # 1. Generate response from agent
+    # 1.Generate response from agent
     result = run_agent(prompt, db, user)
     
     # 2. Handle Session ID
@@ -219,6 +256,81 @@ async def agent_action(
     db.commit()
     
     return {"response": result, "session_id": session_id}
+
+
+@router.post("/agent/upload")
+async def upload_agent_tasks(
+    file: UploadFile = File(...),
+    session_id: str = Form(None),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(is_authenticated)
+):
+    from src.tasks.dtos import TaskSchema
+
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File must be 5 MB or smaller")
+
+    filename = (file.filename or "tasks").replace("\\", "/").split("/")[-1]
+    extracted_tasks = extract_tasks_from_file(filename, content)
+
+    existing_titles = {
+        title for (title,) in db.query(task_controller.TaskModel.title)
+        .filter(
+            task_controller.TaskModel.user_id == user.id,
+            task_controller.TaskModel.title.in_([task["title"] for task in extracted_tasks])
+        )
+        .all()
+    }
+    created_count = 0
+    skipped_count = 0
+    for task_data in extracted_tasks:
+        title = task_data["title"]
+        if title in existing_titles:
+            skipped_count += 1
+            continue
+        task_controller.create_task(
+            TaskSchema(
+                title=title,
+                description=task_data["description"],
+                priority="medium"
+            ),
+            db,
+            user
+        )
+        existing_titles.add(title)
+        created_count += 1
+
+    if created_count:
+        response_text = f"Created {created_count} task(s) from {filename}."
+    else:
+        response_text = f"No new tasks created from {filename}."
+    if skipped_count:
+        response_text += f" Skipped {skipped_count} duplicate task(s)."
+
+    prompt = f"Import tasks from {filename}"
+    if not session_id or session_id in {"null", "undefined"}:
+        session_id = str(uuid.uuid4())
+    existing_session = db.query(ChatHistoryModel).filter(
+        ChatHistoryModel.session_id == session_id,
+        ChatHistoryModel.user_id == user.id
+    ).first()
+    session_title = existing_session.session_title if existing_session else prompt[:50]
+    db.add(ChatHistoryModel(
+        user_id=user.id,
+        session_id=session_id,
+        session_title=session_title,
+        prompt=prompt,
+        response=response_text
+    ))
+    db.commit()
+
+    return {
+        "response": response_text,
+        "session_id": session_id,
+        "created_count": created_count,
+        "skipped_count": skipped_count
+    }
 
 @router.get("/agent/sessions")
 async def get_sessions(db: Session = Depends(get_db), user: UserModel = Depends(is_authenticated)):
@@ -272,4 +384,3 @@ async def rename_session(
     ).update({"session_title": new_title})
     db.commit()
     return {"status": "renamed", "new_title": new_title}
-

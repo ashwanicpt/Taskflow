@@ -369,6 +369,21 @@
             transform: translateY(-1px);
         }
 
+        .chatbot-upload {
+            width: 44px;
+            flex: 0 0 44px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f3f9;
+            color: #4b5563;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .chatbot-upload:hover {
+            background: #e5e7eb;
+        }
+
         .chat-loading {
             display: flex;
             gap: 6px;
@@ -424,6 +439,7 @@
                 <div class="nav-group">
                     {% if user %}
                         <a href="/tasks" class="nav-link">My Tasks</a>
+                        <a href="/logs" class="nav-link">Application Logs</a>
                         <div class="user-profile">
                             <div class="user-avatar">{{ ((user.name or user.username or "U") | string)[0]|upper }}</div>
                             <span style="font-weight: 600; font-size: 0.875rem; color: var(--text);">{{ user.name or user.username or "User" }}</span>
@@ -474,6 +490,8 @@
                     <!-- Messages will be loaded/appended here -->
                 </div>
                 <div class="chatbot-input">
+                    <button type="button" class="chatbot-upload" id="chatbotUploadButton" title="Upload a Word or Excel task file" aria-label="Upload a Word or Excel task file">📎</button>
+                    <input type="file" id="chatbotFileInput" accept=".docx,.xlsx" hidden />
                     <input type="text" id="chatbotInput" placeholder="Ask me something..." autocomplete="off" />
                     <button class="chatbot-send" id="chatbotSend">Send</button>
                 </div>
@@ -541,6 +559,8 @@
         const chatbotClose = document.getElementById('chatbotClose');
         const chatbotInput = document.getElementById('chatbotInput');
         const chatbotSend = document.getElementById('chatbotSend');
+        const chatbotUploadButton = document.getElementById('chatbotUploadButton');
+        const chatbotFileInput = document.getElementById('chatbotFileInput');
         const chatbotMessages = document.getElementById('chatbotMessages');
         const toggleSidebar = document.getElementById('toggleSidebar');
         const chatbotSidebar = document.getElementById('chatbotSidebar');
@@ -749,7 +769,15 @@
                         body: formData
                     });
 
-                    const data = await response.json();
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = responseText ? JSON.parse(responseText) : {};
+                    } catch {
+                        data = {
+                            detail: responseText.split('\n')[0] || `Request failed with status ${response.status}`
+                        };
+                    }
                     removeLoading();
 
                     if (response.ok) {
@@ -772,6 +800,43 @@
             chatbotSend.addEventListener('click', sendMessage);
             chatbotInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();
+            });
+
+            chatbotUploadButton.addEventListener('click', () => chatbotFileInput.click());
+            chatbotFileInput.addEventListener('change', async () => {
+                const file = chatbotFileInput.files[0];
+                if (!file) return;
+
+                appendMessage(`Upload: ${file.name}`, 'user');
+                appendLoading();
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    if (currentSessionId) formData.append('session_id', currentSessionId);
+                    const response = await fetch('/agent/upload', { method: 'POST', body: formData });
+                    const responseText = await response.text();
+                    let data;
+                    try {
+                        data = responseText ? JSON.parse(responseText) : {};
+                    } catch {
+                        data = { detail: responseText.split('\n')[0] || `Request failed with status ${response.status}` };
+                    }
+
+                    if (!response.ok) {
+                        appendMessage(`Error: ${data.detail || 'Upload failed'}`, 'bot');
+                        return;
+                    }
+
+                    appendMessage(data.response, 'bot');
+                    currentSessionId = data.session_id;
+                    loadSessions();
+                    if (data.created_count > 0) setTimeout(() => window.location.reload(), 1500);
+                } catch (error) {
+                    appendMessage(`Error: ${error.message}`, 'bot');
+                } finally {
+                    removeLoading();
+                    chatbotFileInput.value = '';
+                }
             });
         }
         {% endif %}
